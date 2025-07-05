@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Photo Flip</title>
+    <!-- Graduation emoji favicon -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 72 72'%3E%3Ctext y='60' font-size='60'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+            color: #e0e0e0;
+            overflow: auto;
+            padding: 20px;
+        }
+
+        /* Intro Animation */
+        .intro-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0d0d0d;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 1s ease-out;
+        }
+
+        .intro-logo {
+            font-size: clamp(2.5rem, 8vw, 4rem);
+            font-weight: bold;
+            margin-bottom: 1.5rem;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 1s ease-out 0.3s forwards;
+            color: #e0e0e0;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .intro-text {
+            font-size: clamp(1rem, 4vw, 1.5rem);
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 1s ease-out 0.6s forwards;
+            color: #b3b3b3;
+        }
+
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Main Container */
+        .container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 40px auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            transform: scale(0.95);
+            transition: all 0.5s ease-out;
+        }
+
+        .container.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        h1 {
+            margin-bottom: 25px;
+            font-weight: 500;
+            text-align: center;
+            font-size: clamp(1.5rem, 5vw, 2rem);
+            color: #e0e0e0;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Flip Card */
+        .flip-card {
+            perspective: 1000px;
+            width: 100%;
+            max-width: 400px;
+            height: 500px;
+            position: relative;
+            margin-bottom: 25px;
+            cursor: pointer;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front, .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+        }
+
+        .flip-card-front {
+            background-color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .flip-card-back {
+            background-color: #222;
+            transform: rotateY(180deg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .flip-card-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .flip-card-img.zoomed {
+            transform: scale(1.5);
+            cursor: zoom-out;
+        }
+
+        /* Flip Button */
+        .flip-btn {
+            background: rgba(60, 60, 60, 0.5);
+            border: 1px solid #444;
+            padding: 12px 25px;
+            border-radius: 50px;
+            color: #e0e0e0;
+            font-size: clamp(1rem, 3vw, 1.2rem);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            font-weight: 500;
+        }
+
+        .flip-btn:hover {
+            background: rgba(80, 80, 80, 0.6);
+            border-color: #555;
+        }
+
+        /* Message Modal */
+        .message-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+            z-index: 100;
+        }
+
+        .message-container.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .message-box {
+            background: #222;
+            padding: 25px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            color: #e0e0e0;
+            text-align: center;
+            position: relative;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+            border: 1px solid #444;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .message-container.show .message-box {
+            transform: scale(1);
+        }
+
+        .message-box h2 {
+            margin-bottom: 15px;
+            color: #ff6666;
+            font-size: clamp(1.3rem, 4vw, 1.8rem);
+            font-weight: 500;
+        }
+
+        .typed-message {
+            min-height: 80px;
+            font-size: clamp(1rem, 3vw, 1.2rem);
+            line-height: 1.6;
+            color: #b3b3b3;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 6px;
+            height: 1em;
+            background: #ff6666;
+            margin-left: 3px;
+            animation: blink 0.7s infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #ff6666;
+        }
+
+        /* Music Control */
+        .music-control {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(60, 60, 60, 0.5);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 101;
+            backdrop-filter: blur(5px);
+            border: 1px solid #444;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .music-control i {
+            font-size: 1.2rem;
+            color: #e0e0e0;
+        }
+
+        /* Now Playing Popup */
+        .now-playing {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(60, 60, 60, 0.7);
+            border-radius: 8px;
+            padding: 15px;
+            width: 250px;
+            display: none;
+            flex-direction: column;
+            z-index: 101;
+            backdrop-filter: blur(5px);
+            border: 1px solid #444;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transform: translateY(20px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .now-playing.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .now-playing-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .now-playing-title {
+            font-size: 0.9rem;
+            color: #ff6666;
+            font-weight: 500;
+        }
+
+        .now-playing-close {
+            background: none;
+            border: none;
+            color: #b3b3b3;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .now-playing-content {
+            display: flex;
+            align-items: center;
+        }
+
+        .now-playing-cover {
+            width: 50px;
+            height: 50px;
+            background: #333;
+            border-radius: 4px;
+            margin-right: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #b3b3b3;
+        }
+
+        .now-playing-info {
+            flex: 1;
+        }
+
+        .now-playing-song {
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 3px;
+        }
+
+        .now-playing-artist {
+            font-size: 0.8rem;
+            color: #b3b3b3;
+        }
+
+        .now-playing-progress {
+            width: 100%;
+            height: 3px;
+            background: #333;
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .now-playing-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: #ff6666;
+            transition: width 0.1s linear;
+        }
+
+        /* Zoom Overlay */
+        .zoom-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .zoom-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .zoomed-img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .zoom-overlay.active .zoomed-img {
+            transform: scale(1);
+        }
+
+        /* Particles */
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <!-- Intro Overlay -->
+    <div class="intro-overlay" id="introOverlay">
+        <div class="intro-logo">PHOTO REVEAL</div>
+        <div class="intro-text">Click to discover the hidden image</div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container" id="mainContainer">
+        <h1>CLICK TO REVEAL THE HIDDEN IMAGE</h1>
+        
+        <div class="flip-card" id="flipCard">
+            <div class="flip-card-inner">
+                <div class="flip-card-front">
+                    <img src="1.jpg" alt="Visible Photo" class="flip-card-img" id="frontImage">
+                </div>
+                <div class="flip-card-back">
+                    <img src="2.jpg" alt="Hidden Photo" class="flip-card-img" id="backImage">
+                </div>
+            </div>
+        </div>
+        
+        <button class="flip-btn" id="flipBtn">REVEAL IMAGE</button>
+    </div>
+
+    <!-- Message Modal -->
+    <div class="message-container" id="messageContainer">
+        <div class="message-box">
+            <button class="close-btn" id="closeBtn">&times;</button>
+            <h2>Sincerely Yours :></h2>
+            <div class="typed-message" id="typedMessage"></div>
+        </div>
+    </div>
+
+    <!-- Now Playing Popup -->
+    <div class="now-playing" id="nowPlaying">
+        <div class="now-playing-header">
+            <div class="now-playing-title">NOW PLAYING</div>
+            <button class="now-playing-close" id="nowPlayingClose">&times;</button>
+        </div>
+        <div class="now-playing-content">
+            <div class="now-playing-cover">
+                <i class="fas fa-music"></i>
+            </div>
+            <div class="now-playing-info">
+                <div class="now-playing-song">BALISONG</div>
+                <div class="now-playing-artist">Rico Blanco</div>
+            </div>
+        </div>
+        <div class="now-playing-progress">
+            <div class="now-playing-progress-bar" id="progressBar"></div>
+        </div>
+    </div>
+
+    <!-- Zoom Overlay -->
+    <div class="zoom-overlay" id="zoomOverlay">
+        <img src="" alt="Zoomed Image" class="zoomed-img" id="zoomedImage">
+    </div>
+
+    <!-- Music Control -->
+    <div class="music-control" id="musicControl">
+        <i class="fas fa-music"></i>
+    </div>
+
+    <!-- Background Particles -->
+    <div class="particles" id="particles"></div>
+
+    <!-- Audio Element -->
+    <audio id="celebrationMusic" loop>
+        <source src="BALISONG (LYRICS) - RICO BLANCO.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const introOverlay = document.getElementById('introOverlay');
+            const mainContainer = document.getElementById('mainContainer');
+            const flipCard = document.getElementById('flipCard');
+            const flipBtn = document.getElementById('flipBtn');
+            const messageContainer = document.getElementById('messageContainer');
+            const typedMessage = document.getElementById('typedMessage');
+            const closeBtn = document.getElementById('closeBtn');
+            const particlesContainer = document.getElementById('particles');
+            const musicControl = document.getElementById('musicControl');
+            const nowPlaying = document.getElementById('nowPlaying');
+            const nowPlayingClose = document.getElementById('nowPlayingClose');
+            const progressBar = document.getElementById('progressBar');
+            const celebrationMusic = document.getElementById('celebrationMusic');
+            const zoomOverlay = document.getElementById('zoomOverlay');
+            const zoomedImage = document.getElementById('zoomedImage');
+            const frontImage = document.getElementById('frontImage');
+            const backImage = document.getElementById('backImage');
+            
+            let flipCount = 0;
+            const flipsNeeded = 1;
+            let hasShownMessage = false;
+            let isMusicPlaying = false;
+            let nowPlayingTimeout;
+            let progressInterval;
+
+            // Start intro animation
+            setTimeout(() => {
+                introOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    introOverlay.style.display = 'none';
+                    mainContainer.classList.add('active');
+                }, 1000);
+            }, 2500);
+
+            createParticles();
+
+            // Flip when card is clicked
+            flipCard.addEventListener('click', function(e) {
+                // Don't flip if clicking on image (for zoom)
+                if (e.target.classList.contains('flip-card-img')) return;
+                
+                flipCard.classList.toggle('flipped');
+                flipCount++;
+                checkFlip();
+            });
+
+            // Flip when button is clicked
+            flipBtn.addEventListener('click', function() {
+                flipCard.classList.toggle('flipped');
+                flipCount++;
+                checkFlip();
+            });
+
+            // Image zoom functionality
+            frontImage.addEventListener('click', function() {
+                zoomedImage.src = this.src;
+                zoomOverlay.classList.add('active');
+            });
+
+            backImage.addEventListener('click', function() {
+                zoomedImage.src = this.src;
+                zoomOverlay.classList.add('active');
+            });
+
+            // Close zoom overlay
+            zoomOverlay.addEventListener('click', function() {
+                this.classList.remove('active');
+            });
+
+            closeBtn.addEventListener('click', function() {
+                messageContainer.classList.remove('show');
+                pauseCelebrationMusic();
+            });
+
+            // Music control toggle
+            musicControl.addEventListener('click', function() {
+                if (isMusicPlaying) {
+                    pauseCelebrationMusic();
+                } else {
+                    playCelebrationMusic();
+                }
+            });
+
+            // Now playing close button
+            nowPlayingClose.addEventListener('click', function(e) {
+                e.stopPropagation();
+                hideNowPlaying();
+            });
+
+            // Show now playing when clicking music control
+            musicControl.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (isMusicPlaying) {
+                    showNowPlaying();
+                }
+            });
+
+            // Hide now playing when clicking outside
+            document.addEventListener('click', function() {
+                hideNowPlaying();
+            });
+
+            // Prevent now playing from closing when clicking inside
+            nowPlaying.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+
+            function checkFlip() {
+                if (flipCount >= flipsNeeded && !hasShownMessage) {
+                    setTimeout(() => {
+                        showMessage();
+                        playCelebrationMusic();
+                        hasShownMessage = true;
+                    }, 800);
+                }
+            }
+
+            function showMessage() {
+                messageContainer.classList.add('show');
+                musicControl.style.display = 'flex';
+                
+                const message = "We're all about to start a new chapter very soon in different universities, but the memories we made together will always mean so much to me. I'm really proud of how far we've all come, and I know even greater things are waiting for us. I'll always be cheering for you, no matter how far we are from each other. Don't forget to take care of yourself and enjoy the ride. You can close this message now, but know I'm always just one message away. 🦁🎓  ";
+                let i = 0;
+                
+                typedMessage.innerHTML = '';
+                
+                function typeWriter() {
+                    if (i < message.length) {
+                        typedMessage.innerHTML += message.charAt(i);
+                        i++;
+                        setTimeout(typeWriter, 30);
+                    } else {
+                        typedMessage.innerHTML += '<span class="cursor"></span>';
+                    }
+                }
+                
+                typeWriter();
+            }
+
+            function playCelebrationMusic() {
+                celebrationMusic.play();
+                isMusicPlaying = true;
+                musicControl.innerHTML = '<i class="fas fa-pause"></i>';
+                showNowPlaying();
+                updateProgressBar();
+            }
+
+            function pauseCelebrationMusic() {
+                celebrationMusic.pause();
+                isMusicPlaying = false;
+                musicControl.innerHTML = '<i class="fas fa-music"></i>';
+                clearInterval(progressInterval);
+                hideNowPlaying();
+            }
+
+            function showNowPlaying() {
+                nowPlaying.style.display = 'flex';
+                setTimeout(() => {
+                    nowPlaying.classList.add('show');
+                }, 10);
+                
+                // Auto-hide after 5 seconds
+                clearTimeout(nowPlayingTimeout);
+                nowPlayingTimeout = setTimeout(() => {
+                    hideNowPlaying();
+                }, 5000);
+            }
+
+            function hideNowPlaying() {
+                nowPlaying.classList.remove('show');
+                setTimeout(() => {
+                    if (!nowPlaying.classList.contains('show')) {
+                        nowPlaying.style.display = 'none';
+                    }
+                }, 300);
+            }
+
+            function updateProgressBar() {
+                clearInterval(progressInterval);
+                
+                progressInterval = setInterval(() => {
+                    if (celebrationMusic.duration) {
+                        const progress = (celebrationMusic.currentTime / celebrationMusic.duration) * 100;
+                        progressBar.style.width = `${progress}%`;
+                    }
+                }, 100);
+            }
+
+            function createParticles() {
+                const particleCount = window.innerWidth < 768 ? 15 : 25;
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const particle = document.createElement('div');
+                    particle.classList.add('particle');
+                    
+                    const size = Math.random() * 3 + 1;
+                    particle.style.width = `${size}px`;
+                    particle.style.height = `${size}px`;
+                    
+                    particle.style.left = `${Math.random() * 100}%`;
+                    particle.style.top = `${Math.random() * 100}%`;
+                    
+                    const duration = Math.random() * 20 + 10;
+                    
+                    particlesContainer.appendChild(particle);
+                    
+                    animateParticle(particle, duration);
+                }
+            }
+
+            function animateParticle(particle, duration) {
+                const startX = Math.random() * 100;
+                const startY = Math.random() * 100;
+                
+                particle.style.left = `${startX}%`;
+                particle.style.top = `${startY}%`;
+                
+                const movementRange = window.innerWidth < 768 ? 60 : 100;
+                const keyframes = [
+                    { transform: `translate(0, 0)` },
+                    { transform: `translate(${Math.random() * movementRange - movementRange/2}px, ${Math.random() * movementRange - movementRange/2}px)` },
+                    { transform: `translate(${Math.random() * movementRange - movementRange/2}px, ${Math.random() * movementRange - movementRange/2}px)` },
+                    { transform: `translate(0, 0)` }
+                ];
+                
+                const options = {
+                    duration: duration * 1000,
+                    iterations: Infinity
+                };
+                
+                particle.animate(keyframes, options);
+            }
+
+            window.addEventListener('resize', function() {
+                particlesContainer.innerHTML = '';
+                createParticles();
+            });
+        });
+    </script>
+    <script>
+        // Add particles to the background
+        const particlesContainer = document.getElementById('particles');
+        const particleCount = window.innerWidth < 768 ? 15 : 25;
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.classList.add('particle');
+            const size = Math.random() * 3 + 1;
+            particle.style.width = `${size}px`;
+            particle.style.height = `${size}px`;
+            particle.style.left = `${Math.random() * 100}%`;
+            particle.style.top = `${Math.random() * 100}%`;
+            particlesContainer.appendChild(particle);
+        }    
+    </script>
+
+    <script>
+        // Prevent copying, viewing source, saving, and opening dev tools
+        document.addEventListener('keydown', function(e) {
+            // F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, Ctrl+S, Ctrl+C
+            if (
+                e.key === 'F12' ||
+                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
+                (e.ctrlKey && (e.key === 'U' || e.key === 'S' || e.key === 'c' || e.key === 'C'))
+            ) {
+                e.preventDefault();
+                alert('Hehe, you can\'t do that!');
+                return false;
+            }
+        });
+
+        // Prevent right-click context menu
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            alert('Hehe, no right-clicking allowed!');
+        });
+
+        // Prevent copy event
+        document.addEventListener('copy', function(e) {
+            e.preventDefault();
+            alert('Hehe, no copying allowed!');
+        });
+    </script>
+</body>
+</html>
